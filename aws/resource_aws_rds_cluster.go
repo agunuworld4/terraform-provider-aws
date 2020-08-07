@@ -659,8 +659,14 @@ func resourceAwsRDSClusterCreate(d *schema.ResourceData, meta interface{}) error
 		}
 
 	} else {
-
-		if _, ok := d.GetOk("global_cluster_identifier"); !ok {
+		// Username and password credentials are required and valid
+		// unless the cluster is a read-replica. This also applies to clusters
+		// within a global cluster, however, we cannot know with certainty from
+		// a config if the cluster in question is the reader or writer within the global cluster;
+		// thus, we only verify credentials when can determine if the cluster
+		// is neither a replica nor part of a global database.
+		_, replica := d.GetOk("replication_source_identifier")
+		if _, ok := d.GetOk("global_cluster_identifier"); !ok && !replica {
 			if _, ok := d.GetOk("master_password"); !ok {
 				return fmt.Errorf(`provider.aws: aws_db_instance: %s: "master_password": required field is not set`, d.Get("database_name").(string))
 			}
